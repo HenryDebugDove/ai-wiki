@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./user-service/data:/app/data
+    networks:
+      - microservices-network
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./order-service/data:/app/data
+    networks:
+      - microservices-network
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./payment-service/data:/app/data
+    networks:
+      - microservices-network
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - user-service
+      - order-service
+      - payment-service
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge

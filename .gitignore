@@ -3,3 +3,6 @@
 /code/.env
 /Interview
 /code/fastapi-demo/__pycache__
+/code/fastapi-demo/order-service/__pycache__
+/code/fastapi-demo/payment-service/__pycache__
+/code/fastapi-demo/user-service/__pycache__
