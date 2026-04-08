@@ -1,0 +1,100 @@
+{
+  "techStack": {
+    "frontend": {
+      "frameworks": ["React", "Vue", "Next.js"],
+      "languages": ["TypeScript", "JavaScript"],
+      "libraries": ["Redux", "React Query", "Axios"]
+    },
+    "backend": {
+      "languages": ["Node.js", "Python", "Go"],
+      "frameworks": ["Express", "FastAPI", "Gin"],
+      "databases": ["MySQL", "PostgreSQL", "MongoDB", "Redis"]
+    },
+    "devOps": {
+      "tools": ["Docker", "Git", "GitHub Actions", "AWS"]
+    }
+  },
+  "typescript": {
+    "strict": true,
+    "target": "ES2018",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "eslint": {
+    "extends": [
+      "eslint:recommended",
+      "plugin:react/recommended",
+      "plugin:@typescript-eslint/recommended",
+      "plugin:prettier/recommended"
+    ],
+    "plugins": ["react", "@typescript-eslint", "prettier"],
+    "rules": {
+      "prettier/prettier": "error",
+      "no-console": "warn",
+      "no-debugger": "error",
+      "react/prop-types": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-explicit-any": "error"
+    }
+  },
+  "namingConventions": {
+    "variables": "camelCase",
+    "functions": "camelCase",
+    "classes": "PascalCase",
+    "interfaces": "PascalCase",
+    "types": "PascalCase",
+    "constants": "UPPER_SNAKE_CASE",
+    "files": "kebab-case",
+    "directories": "kebab-case"
+  },
+  "directoryStructure": {
+    "src": {
+      "components": "React/Vue 组件",
+      "pages": "页面组件",
+      "api": "API 接口",
+      "services": "服务层",
+      "hooks": "自定义钩子",
+      "utils": "工具函数",
+      "types": "TypeScript 类型定义",
+      "styles": "样式文件",
+      "assets": "静态资源"
+    },
+    "public": "公共静态文件",
+    "tests": "测试文件",
+    "config": "配置文件",
+    "docs": "文档"
+  },
+  "codeQuality": {
+    "maxLineLength": 120,
+    "indentSize": 2,
+    "semicolons": true,
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "bracketSpacing": true,
+    "arrowParens": "always"
+  },
+  "security": {
+    "requireHTTPS": true,
+    "cors": {
+      "enabled": true,
+      "allowedOrigins": ["*"]
+    },
+    "rateLimiting": true,
+    "inputValidation": true,
+    "sqlInjectionProtection": true,
+    "xssProtection": true
+  }
+}
