@@ -32,6 +32,7 @@
 - **RESTful API**：每个服务都实现了完整的 CRUD 操作
 - **服务间调用**：订单服务调用用户服务，支付服务调用订单服务
 - **SQLite 数据库**：每个服务使用独立的 SQLite 数据库
+- **Redis 缓存**：使用 Redis 缓存提高系统性能，缓存过期时间为 5 分钟
 - **自动 API 文档**：FastAPI 自动生成的 Swagger 文档
 - **数据验证**：使用 Pydantic 进行数据模型定义和验证
 - **错误处理**：基本的错误处理机制
@@ -333,6 +334,7 @@ curl -X POST "http://localhost:8003/api/pay" \
 - **Uvicorn**：ASGI 服务器
 - **Pydantic**：数据验证
 - **SQLite**：轻量级数据库
+- **Redis**：缓存服务，提高系统性能
 - **httpx**：HTTP 客户端，用于服务间调用
 - **Docker**：容器化部署
 - **Nginx**：反向代理和统一入口
@@ -345,16 +347,22 @@ curl -X POST "http://localhost:8003/api/pay" \
    - 数据库文件会自动创建在各服务的 `data` 目录中
    - 服务启动时会自动插入示例数据
 
-2. **服务间调用**：
+2. **Redis 缓存**：
+   - 本项目使用 Redis 作为缓存服务，提高系统性能
+   - 缓存过期时间设置为 5 分钟
+   - 服务启动前需要确保 Redis 服务正在运行
+   - Redis 默认端口为 6379，若修改端口需要在各服务代码中相应修改
+
+3. **服务间调用**：
    - 服务间通过 HTTP 接口调用
    - 调用地址使用 `localhost`，适用于本地开发
    - 在 Docker 环境中，应使用服务名称作为主机名
 
-3. **Docker 网络**：
+4. **Docker 网络**：
    - Docker Compose 会自动创建网络，服务间可以通过服务名称访问
    - 例如：订单服务可以通过 `http://user-service:8000/api/user/{user_id}` 访问用户服务
 
-4. **扩展建议**：
+5. **扩展建议**：
    - 可以添加配置中心管理服务配置
    - 可以添加服务注册与发现机制
    - 可以添加监控和日志系统
@@ -365,11 +373,13 @@ curl -X POST "http://localhost:8003/api/pay" \
 
 - 使用直接运行的方式，便于调试和开发
 - 启用 `--reload` 参数，实现代码热更新
+- 安装并运行本地 Redis 服务：`docker run --name redis -p 6379:6379 -d redis`
 
 ### 测试环境
 
 - 使用 Docker Compose 部署
 - 可以模拟生产环境的配置
+- 确保 Redis 服务正常运行
 
 ### 生产环境
 
@@ -378,6 +388,8 @@ curl -X POST "http://localhost:8003/api/pay" \
 - 启用 HTTPS
 - 配置负载均衡和高可用
 - 定期备份数据库
+- 为 Redis 配置持久化存储，确保缓存数据安全
+- 考虑使用 Redis 集群，提高可用性和性能
 
 ## 总结
 

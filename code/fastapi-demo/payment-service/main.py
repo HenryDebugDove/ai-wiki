@@ -1,11 +1,17 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
 import os
 import httpx
+import redis
+import json
 
 # 确保数据库文件所在目录存在
 os.makedirs('data', exist_ok=True)
+
+# Redis 连接
+redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 # 数据库连接函数
 def get_db():
@@ -47,8 +53,17 @@ init_db()
 # 创建 FastAPI 应用
 app = FastAPI(
     title="支付服务",
-    description="处理支付相关操作的微服务",
+    description="支付管理微服务",
     version="1.0.0"
+)
+
+# 配置 CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许的 HTTP 方法
+    allow_headers=["*"],  # 允许的 HTTP 头
 )
 
 # 数据模型
@@ -86,23 +101,52 @@ async def root():
 
 @app.get("/api/pay", response_model=list[Payment])
 async def get_payments():
+    # 尝试从 Redis 缓存获取
+    cache_key = "payments:all"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    # 从数据库获取
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM payments')
     payments = cursor.fetchall()
     conn.close()
-    return [dict(payment) for payment in payments]
+    
+    # 转换为字典列表
+    payment_list = [dict(payment) for payment in payments]
+    
+    # 存入 Redis 缓存，过期时间 5 分钟
+    redis_client.setex(cache_key, 300, json.dumps(payment_list))
+    
+    return payment_list
 
 @app.get("/api/pay/{payment_id}", response_model=Payment)
 async def get_payment(payment_id: int):
+    # 尝试从 Redis 缓存获取
+    cache_key = f"payment:{payment_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    # 从数据库获取
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM payments WHERE id = ?', (payment_id,))
     payment = cursor.fetchone()
     conn.close()
+    
     if not payment:
         raise HTTPException(status_code=404, detail="支付记录不存在")
-    return dict(payment)
+    
+    # 转换为字典
+    payment_dict = dict(payment)
+    
+    # 存入 Redis 缓存，过期时间 5 分钟
+    redis_client.setex(cache_key, 300, json.dumps(payment_dict))
+    
+    return payment_dict
 
 @app.post("/api/pay", response_model=Payment)
 async def create_payment(payment: PaymentCreate):
@@ -123,6 +167,10 @@ async def create_payment(payment: PaymentCreate):
     conn.commit()
     payment_id = cursor.lastrowid
     conn.close()
+    
+    # 清除缓存
+    redis_client.delete("payments:all")
+    
     return {"id": payment_id, **payment.dict()}
 
 @app.put("/api/pay/{payment_id}", response_model=Payment)
@@ -149,6 +197,11 @@ async def update_payment(payment_id: int, payment: PaymentCreate):
     ''', (payment.order_id, payment.amount, payment.payment_method, payment.status, payment_id))
     conn.commit()
     conn.close()
+    
+    # 清除缓存
+    redis_client.delete(f"payment:{payment_id}")
+    redis_client.delete("payments:all")
+    
     return {"id": payment_id, **payment.dict()}
 
 @app.delete("/api/pay/{payment_id}")
@@ -163,4 +216,9 @@ async def delete_payment(payment_id: int):
     cursor.execute('DELETE FROM payments WHERE id = ?', (payment_id,))
     conn.commit()
     conn.close()
+    
+    # 清除缓存
+    redis_client.delete(f"payment:{payment_id}")
+    redis_client.delete("payments:all")
+    
     return {"message": "支付记录删除成功"}

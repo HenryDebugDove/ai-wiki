@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastAPI 微服务演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #e0e0e0;
+            border: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            font-size: 16px;
+        }
+        
+        .tab.active {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            background-color: white;
+            padding: 20px;
+            border-radius: 0 0 5px 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #229954;
+        }
+        
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .form-container {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        input[type="email"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .message {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FastAPI 微服务演示</h1>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="users">用户管理</button>
+            <button class="tab" data-tab="orders">订单管理</button>
+            <button class="tab" data-tab="payments">支付管理</button>
+        </div>
+        
+        <!-- 用户管理 -->
+        <div id="users" class="tab-content active">
+            <div class="action-bar">
+                <h2>用户列表</h2>
+                <button class="btn btn-primary" onclick="showUserForm()">添加用户</button>
+            </div>
+            
+            <div id="user-message" class="message" style="display: none;"></div>
+            
+            <div class="form-container" id="user-form" style="display: none;">
+                <h3>添加/编辑用户</h3>
+                <input type="hidden" id="user-id">
+                <div class="form-group">
+                    <label for="user-name">姓名</label>
+                    <input type="text" id="user-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-email">邮箱</label>
+                    <input type="email" id="user-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-age">年龄</label>
+                    <input type="number" id="user-age" required>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-success" onclick="saveUser()">保存</button>
+                    <button class="btn" onclick="hideUserForm()">取消</button>
+                </div>
+            </div>
+            
+            <div id="user-loading" class="loading">加载中...</div>
+            <table id="user-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>姓名</th>
+                        <th>邮箱</th>
+                        <th>年龄</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 订单管理 -->
+        <div id="orders" class="tab-content">
+            <div class="action-bar">
+                <h2>订单列表</h2>
+                <button class="btn btn-primary" onclick="showOrderForm()">添加订单</button>
+            </div>
+            
+            <div id="order-message" class="message" style="display: none;"></div>
+            
+            <div class="form-container" id="order-form" style="display: none;">
+                <h3>添加/编辑订单</h3>
+                <input type="hidden" id="order-id">
+                <div class="form-group">
+                    <label for="order-user-id">用户ID</label>
+                    <input type="number" id="order-user-id" required>
+                </div>
+                <div class="form-group">
+                    <label for="order-product">商品名称</label>
+                    <input type="text" id="order-product" required>
+                </div>
+                <div class="form-group">
+                    <label for="order-amount">金额</label>
+                    <input type="number" id="order-amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="order-status">状态</label>
+                    <select id="order-status" required>
+                        <option value="pending">待处理</option>
+                        <option value="completed">已完成</option>
+                        <option value="cancelled">已取消</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-success" onclick="saveOrder()">保存</button>
+                    <button class="btn" onclick="hideOrderForm()">取消</button>
+                </div>
+            </div>
+            
+            <div id="order-loading" class="loading">加载中...</div>
+            <table id="order-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户ID</th>
+                        <th>商品名称</th>
+                        <th>金额</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 支付管理 -->
+        <div id="payments" class="tab-content">
+            <div class="action-bar">
+                <h2>支付记录</h2>
+                <button class="btn btn-primary" onclick="showPaymentForm()">添加支付</button>
+            </div>
+            
+            <div id="payment-message" class="message" style="display: none;"></div>
+            
+            <div class="form-container" id="payment-form" style="display: none;">
+                <h3>添加/编辑支付</h3>
+                <input type="hidden" id="payment-id">
+                <div class="form-group">
+                    <label for="payment-order-id">订单ID</label>
+                    <input type="number" id="payment-order-id" required>
+                </div>
+                <div class="form-group">
+                    <label for="payment-amount">金额</label>
+                    <input type="number" id="payment-amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="payment-method">支付方式</label>
+                    <select id="payment-method" required>
+                        <option value="alipay">支付宝</option>
+                        <option value="wechat">微信支付</option>
+                        <option value="creditcard">信用卡</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="payment-status">状态</label>
+                    <select id="payment-status" required>
+                        <option value="pending">待处理</option>
+                        <option value="completed">已完成</option>
+                        <option value="failed">失败</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-success" onclick="savePayment()">保存</button>
+                    <button class="btn" onclick="hidePaymentForm()">取消</button>
+                </div>
+            </div>
+            
+            <div id="payment-loading" class="loading">加载中...</div>
+            <table id="payment-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>订单ID</th>
+                        <th>金额</th>
+                        <th>支付方式</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        // 各模块 API 基础 URL
+        const API_BASES = {
+            user: 'http://localhost:8001',
+            order: 'http://localhost:8002',
+            pay: 'http://localhost:8003'
+        };
+        
+        // 标签切换
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabId = this.dataset.tab;
+                
+                // 移除所有活动状态
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // 添加活动状态
+                this.classList.add('active');
+                document.getElementById(tabId).classList.add('active');
+                
+                // 加载对应数据
+                if (tabId === 'users') loadUsers();
+                else if (tabId === 'orders') loadOrders();
+                else if (tabId === 'payments') loadPayments();
+            });
+        });
+        
+        // 显示消息
+        function showMessage(elementId, message, type) {
+            const messageElement = document.getElementById(elementId);
+            messageElement.textContent = message;
+            messageElement.className = `message ${type}`;
+            messageElement.style.display = 'block';
+            
+            // 3秒后隐藏消息
+            setTimeout(() => {
+                messageElement.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 加载用户列表
+        function loadUsers() {
+            const loadingElement = document.getElementById('user-loading');
+            const tableBody = document.querySelector('#user-table tbody');
+            
+            loadingElement.style.display = 'block';
+            tableBody.innerHTML = '';
+            
+            fetch(`${API_BASES.user}/api/user`)
+                .then(response => response.json())
+                .then(users => {
+                    loadingElement.style.display = 'none';
+                    users.forEach(user => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${user.id}</td>
+                            <td>${user.name}</td>
+                            <td>${user.email}</td>
+                            <td>${user.age}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="editUser(${user.id})">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteUser(${user.id})">删除</button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    loadingElement.style.display = 'none';
+                    showMessage('user-message', '加载用户失败: ' + error.message, 'error');
+                });
+        }
+        
+        // 显示用户表单
+        function showUserForm() {
+            document.getElementById('user-id').value = '';
+            document.getElementById('user-name').value = '';
+            document.getElementById('user-email').value = '';
+            document.getElementById('user-age').value = '';
+            document.getElementById('user-form').style.display = 'block';
+        }
+        
+        // 隐藏用户表单
+        function hideUserForm() {
+            document.getElementById('user-form').style.display = 'none';
+        }
+        
+        // 保存用户
+        function saveUser() {
+            const id = document.getElementById('user-id').value;
+            const name = document.getElementById('user-name').value;
+            const email = document.getElementById('user-email').value;
+            const age = document.getElementById('user-age').value;
+            
+            const userData = { name, email, age };
+            const url = id ? `${API_BASES.user}/api/user/${id}` : `${API_BASES.user}/api/user`;
+            const method = id ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(userData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.detail || '操作失败');
+                    });
+                }
+                return response.json();
+            })
+            .then(() => {
+                hideUserForm();
+                loadUsers();
+                showMessage('user-message', id ? '用户更新成功' : '用户添加成功', 'success');
+            })
+            .catch(error => {
+                showMessage('user-message', '操作失败: ' + error.message, 'error');
+            });
+        }
+        
+        // 编辑用户
+        function editUser(id) {
+            fetch(`${API_BASES.user}/api/user/${id}`)
+                .then(response => response.json())
+                .then(user => {
+                    document.getElementById('user-id').value = user.id;
+                    document.getElementById('user-name').value = user.name;
+                    document.getElementById('user-email').value = user.email;
+                    document.getElementById('user-age').value = user.age;
+                    document.getElementById('user-form').style.display = 'block';
+                })
+                .catch(error => {
+                    showMessage('user-message', '加载用户失败: ' + error.message, 'error');
+                });
+        }
+        
+        // 删除用户
+        function deleteUser(id) {
+            if (confirm('确定要删除这个用户吗？')) {
+                fetch(`${API_BASES.user}/api/user/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.detail || '删除失败');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    loadUsers();
+                    showMessage('user-message', '用户删除成功', 'success');
+                })
+                .catch(error => {
+                    showMessage('user-message', '删除失败: ' + error.message, 'error');
+                });
+            }
+        }
+        
+        // 加载订单列表
+        function loadOrders() {
+            const loadingElement = document.getElementById('order-loading');
+            const tableBody = document.querySelector('#order-table tbody');
+            
+            loadingElement.style.display = 'block';
+            tableBody.innerHTML = '';
+            
+            fetch(`${API_BASES.order}/api/order`)
+                .then(response => response.json())
+                .then(orders => {
+                    loadingElement.style.display = 'none';
+                    orders.forEach(order => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${order.id}</td>
+                            <td>${order.user_id}</td>
+                            <td>${order.product_name}</td>
+                            <td>${order.amount}</td>
+                            <td>${order.status}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="editOrder(${order.id})">编辑</button>
+                                <button class="btn btn-danger" onclick="deleteOrder(${order.id})">删除</button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    loadingElement.style.display = 'none';
+                    showMessage('order-message', '加载订单失败: ' + error.message, 'error');
+                });
+        }
+        
+        // 显示订单表单
+        function showOrderForm() {
+            document.getElementById('order-id').value = '';
+            document.getElementById('order-user-id').value = '';
+            document.getElementById('order-product').value = '';
+            document.getElementById('order-amount').value = '';
+            document.getElementById('order-status').value = 'pending';
+            document.getElementById('order-form').style.display = 'block';
+        }
+        
+        // 隐藏订单表单
+        function hideOrderForm() {
+            document.getElementById('order-form').style.display = 'none';
+        }
+        
+        // 保存订单
+        function saveOrder() {
+            const id = document.getElementById('order-id').value;
+            const user_id = document.getElementById('order-user-id').value;
+            const product_name = document.getElementById('order-product').value;
+            const amount = parseFloat(document.getElementById('order-amount').value);
+            const status = document.getElementById('order-status').value;
+            
+            const orderData = { user_id, product_name, amount, status };
+            const url = id ? `${API_BASES.order}/api/order/${id}` : `${API_BASES.order}/api/order`;
+            const method = id ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(orderData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.detail || '操作失败');
+                    });
+                }
+                return response.json();
+            })
+            .then(() => {
+                hideOrderForm();
+                loadOrders();
+                showMessage('order-message', id ? '订单更新成功' : '订单添加成功', 'success');
+            })
+            .catch(error => {
+                showMessage('order-message', '操作失败: ' + error.message, 'error');
+            });
+        }
+        
+        // 编辑订单
+        function editOrder(id) {
+            fetch(`${API_BASES.order}/api/order/${id}`)
+                .then(response => response.json())
+                .then(order => {
+                    document.getElementById('order-id').value = order.id;
+                    document.getElementById('order-user-id').value = order.user_id;
+                    document.getElementById('order-product').value = order.product_name;
+                    document.getElementById('order-amount').value = order.amount;
+                    document.getElementById('order-status').value = order.status;
+                    document.getElementById('order-form').style.display = 'block';
+                })
+                .catch(error => {
+                    showMessage('order-message', '加载订单失败: ' + error.message, 'error');
+                });
+        }
+        
+        // 删除订单
+        function deleteOrder(id) {
+            if (confirm('确定要删除这个订单吗？')) {
+                fetch(`${API_BASES.order}/api/order/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.detail || '删除失败');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    loadOrders();
+                    showMessage('order-message', '订单删除成功', 'success');
+                })
+                .catch(error => {
+                    showMessage('order-message', '删除失败: ' + error.message, 'error');
+                });
+            }
+        }
+        
+        // 加载支付记录
+        function loadPayments() {
+            const loadingElement = document.getElementById('payment-loading');
+            const tableBody = document.querySelector('#payment-table tbody');
+            
+            loadingElement.style.display = 'block';
+            tableBody.innerHTML = '';
+            
+            fetch(`${API_BASES.pay}/api/pay`)
+                .then(response => response.json())
+                .then(payments => {
+                    loadingElement.style.display = 'none';
+                    payments.forEach(payment => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${payment.id}</td>
+                            <td>${payment.order_id}</td>
+                            <td>${payment.amount}</td>
+                            <td>${payment.payment_method}</td>
+                            <td>${payment.status}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="editPayment(${payment.id})">编辑</button>
+                                <button class="btn btn-danger" onclick="deletePayment(${payment.id})">删除</button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    loadingElement.style.display = 'none';
+                    showMessage('payment-message', '加载支付记录失败: ' + error.message, 'error');
+                });
+        }
+        
+        // 显示支付表单
+        function showPaymentForm() {
+            document.getElementById('payment-id').value = '';
+            document.getElementById('payment-order-id').value = '';
+            document.getElementById('payment-amount').value = '';
+            document.getElementById('payment-method').value = 'alipay';
+            document.getElementById('payment-status').value = 'pending';
+            document.getElementById('payment-form').style.display = 'block';
+        }
+        
+        // 隐藏支付表单
+        function hidePaymentForm() {
+            document.getElementById('payment-form').style.display = 'none';
+        }
+        
+        // 保存支付
+        function savePayment() {
+            const id = document.getElementById('payment-id').value;
+            const order_id = document.getElementById('payment-order-id').value;
+            const amount = parseFloat(document.getElementById('payment-amount').value);
+            const payment_method = document.getElementById('payment-method').value;
+            const status = document.getElementById('payment-status').value;
+            
+            const paymentData = { order_id, amount, payment_method, status };
+            const url = id ? `${API_BASES.pay}/api/pay/${id}` : `${API_BASES.pay}/api/pay`;
+            const method = id ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(paymentData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.detail || '操作失败');
+                    });
+                }
+                return response.json();
+            })
+            .then(() => {
+                hidePaymentForm();
+                loadPayments();
+                showMessage('payment-message', id ? '支付记录更新成功' : '支付记录添加成功', 'success');
+            })
+            .catch(error => {
+                showMessage('payment-message', '操作失败: ' + error.message, 'error');
+            });
+        }
+        
+        // 编辑支付
+        function editPayment(id) {
+            fetch(`${API_BASES.pay}/api/pay/${id}`)
+                .then(response => response.json())
+                .then(payment => {
+                    document.getElementById('payment-id').value = payment.id;
+                    document.getElementById('payment-order-id').value = payment.order_id;
+                    document.getElementById('payment-amount').value = payment.amount;
+                    document.getElementById('payment-method').value = payment.payment_method;
+                    document.getElementById('payment-status').value = payment.status;
+                    document.getElementById('payment-form').style.display = 'block';
+                })
+                .catch(error => {
+                    showMessage('payment-message', '加载支付记录失败: ' + error.message, 'error');
+                });
+        }
+        
+        // 删除支付
+        function deletePayment(id) {
+            if (confirm('确定要删除这个支付记录吗？')) {
+                fetch(`${API_BASES.pay}/api/pay/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.detail || '删除失败');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    loadPayments();
+                    showMessage('payment-message', '支付记录删除成功', 'success');
+                })
+                .catch(error => {
+                    showMessage('payment-message', '删除失败: ' + error.message, 'error');
+                });
+            }
+        }
+        
+        // 初始化加载用户数据
+        window.onload = function() {
+            loadUsers();
+        };
+    </script>
+</body>
+</html>

@@ -1,11 +1,17 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
 import os
 import httpx
+import redis
+import json
 
 # 确保数据库文件所在目录存在
 os.makedirs('data', exist_ok=True)
+
+# Redis 连接
+redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 # 数据库连接函数
 def get_db():
@@ -47,8 +53,17 @@ init_db()
 # 创建 FastAPI 应用
 app = FastAPI(
     title="订单服务",
-    description="处理订单相关操作的微服务",
+    description="订单管理微服务",
     version="1.0.0"
+)
+
+# 配置 CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许的 HTTP 方法
+    allow_headers=["*"],  # 允许的 HTTP 头
 )
 
 # 数据模型
@@ -86,23 +101,52 @@ async def root():
 
 @app.get("/api/order", response_model=list[Order])
 async def get_orders():
+    # 尝试从 Redis 缓存获取
+    cache_key = "orders:all"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    # 从数据库获取
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM orders')
     orders = cursor.fetchall()
     conn.close()
-    return [dict(order) for order in orders]
+    
+    # 转换为字典列表
+    order_list = [dict(order) for order in orders]
+    
+    # 存入 Redis 缓存，过期时间 5 分钟
+    redis_client.setex(cache_key, 300, json.dumps(order_list))
+    
+    return order_list
 
 @app.get("/api/order/{order_id}", response_model=Order)
 async def get_order(order_id: int):
+    # 尝试从 Redis 缓存获取
+    cache_key = f"order:{order_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    # 从数据库获取
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM orders WHERE id = ?', (order_id,))
     order = cursor.fetchone()
     conn.close()
+    
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
-    return dict(order)
+    
+    # 转换为字典
+    order_dict = dict(order)
+    
+    # 存入 Redis 缓存，过期时间 5 分钟
+    redis_client.setex(cache_key, 300, json.dumps(order_dict))
+    
+    return order_dict
 
 @app.post("/api/order", response_model=Order)
 async def create_order(order: OrderCreate):
@@ -119,6 +163,10 @@ async def create_order(order: OrderCreate):
     conn.commit()
     order_id = cursor.lastrowid
     conn.close()
+    
+    # 清除缓存
+    redis_client.delete("orders:all")
+    
     return {"id": order_id, **order.dict()}
 
 @app.put("/api/order/{order_id}", response_model=Order)
@@ -141,6 +189,11 @@ async def update_order(order_id: int, order: OrderCreate):
     ''', (order.user_id, order.product_name, order.amount, order.status, order_id))
     conn.commit()
     conn.close()
+    
+    # 清除缓存
+    redis_client.delete(f"order:{order_id}")
+    redis_client.delete("orders:all")
+    
     return {"id": order_id, **order.dict()}
 
 @app.delete("/api/order/{order_id}")
@@ -155,4 +208,9 @@ async def delete_order(order_id: int):
     cursor.execute('DELETE FROM orders WHERE id = ?', (order_id,))
     conn.commit()
     conn.close()
+    
+    # 清除缓存
+    redis_client.delete(f"order:{order_id}")
+    redis_client.delete("orders:all")
+    
     return {"message": "订单删除成功"}
